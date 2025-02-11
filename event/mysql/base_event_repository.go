@@ -28,8 +28,14 @@ func NewMySQLBaseEventRepository(db *gorm.DB, tableName string) *MySQLBaseEventR
 
 // InsertEvent 插入事件
 func (r *MySQLBaseEventRepository) InsertEvent(event *domain.ShieldEvent) (bool, error) {
+	var tx *gorm.DB
+	if event.GetDB() == nil {
+		tx = r.db
+	} else {
+		tx = event.GetDB()
+	}
 	event.SetRecordStatus(0)
-	result := r.db.Create(event)
+	result := tx.Create(event)
 	if result.Error != nil {
 		logger.Errorf("Failed to insert event: %v", result.Error)
 		return false, result.Error
@@ -75,11 +81,12 @@ func (r *MySQLBaseEventRepository) DeleteEventLogicallyById(event *domain.Shield
 	return true, nil
 }
 
-// QueryEventListByStatus 根据事件状态获取事件列表
+// / QueryEventListByStatus 根据事件状态获取事件列表
 func (r *MySQLBaseEventRepository) QueryEventListByStatus(eventStatus string) ([]*domain.ShieldEvent, error) {
 	var resultList []*domain.ShieldEvent
 	result := r.db.Where("event_status = ? AND record_status = 0", eventStatus).
 		Limit(50).
+		Set("gorm:query_option", "FOR UPDATE").
 		Find(&resultList)
 	if result.Error != nil {
 		logger.Errorf("Failed to query events by status: %v", result.Error)

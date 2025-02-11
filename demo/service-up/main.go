@@ -75,7 +75,7 @@ func main() {
 	db := getDB()
 	scheduler := getScheduler(db)
 	scheduler.Schedule()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 20; i++ {
 		// 初始化数据库连接
 		tx := db.Begin()
 		if tx.Error != nil {
@@ -90,7 +90,7 @@ func main() {
 
 		// 业务代码
 		// 使用 repo 进行数据库操作
-		if err := scheduler.PutMessage("appid", constant.COMMIT, uuid.New().String(), strconv.Itoa(i)); err != nil {
+		if err := scheduler.PutMessage(tx, "appid", constant.COMMIT, uuid.New().String(), strconv.Itoa(i)); err != nil {
 			tx.Rollback()
 			return
 		}

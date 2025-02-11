@@ -12,6 +12,7 @@ import (
 	"github.com/fy403/local-msg-table/subscrible/rocketmq"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 	"sync"
 	"time"
 )
@@ -93,6 +94,18 @@ func (s *SendTxcMessageScheduler) Run() {
 				for _, shieldEvent := range shieldEvents {
 					s.sendMessageSync(shieldEvent)
 				}
+				// 如果一个任务长期没有状态更新为最终状态，则需要重试
+				waitingEvents, err := s.baseEventService.QueryEventListByStatus(string(constant.PRODUCE_PROCESSING))
+				if err != nil {
+					logger.Errorf("Failed to query event list: %v", err)
+					return
+				}
+				deadline := time.Now().Add(-time.Minute * 5)
+				for _, waitingEvent := range waitingEvents {
+					if waitingEvent.GmtUpdate.Before(deadline) {
+						s.sendMessageSync(waitingEvent)
+					}
+				}
 			}()
 		case <-s.stopChan:
 			return
@@ -109,7 +122,7 @@ func (s *SendTxcMessageScheduler) sendMessageSync(shieldEvent *domain.ShieldEven
 	s.processAfterSendMessage(shieldEvent)
 }
 
-func (s *SendTxcMessageScheduler) PutMessage(appId string, txType constant.TXType, eventId string, content string) error {
+func (s *SendTxcMessageScheduler) PutMessage(tx *gorm.DB, appId string, txType constant.TXType, eventId string, content string) error {
 	if eventId == "" {
 		eventId = uuid.New().String()
 	}
@@ -123,7 +136,7 @@ func (s *SendTxcMessageScheduler) PutMessage(appId string, txType constant.TXTyp
 		Content:     content,
 		AppID:       appId,
 	}
-
+	event.SetDB(tx)
 	insertResult, err := s.baseEventService.InsertEvent(event)
 	if err != nil {
 		return fmt.Errorf("insert ShieldEvent into DB occurred Exception! %w", err)

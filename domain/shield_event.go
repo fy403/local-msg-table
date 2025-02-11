@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -18,11 +19,20 @@ type ShieldEvent struct {
 	BeforeUpdateEventStatus string    `json:"beforeUpdateEventStatus" gorm:"column:before_update_event_status"`
 	GmtCreate               time.Time `json:"gmtCreate" gorm:"column:gmt_create;autoCreateTime"`
 	GmtUpdate               time.Time `json:"gmtUpdate" gorm:"column:gmt_update;autoUpdateTime"`
+	db                      *gorm.DB  `json:"-" gorm:"-"`
 }
 
 // TableName 指定表名为 shield_event
 func (s *ShieldEvent) TableName() string {
 	return "shield_event"
+}
+
+func (s *ShieldEvent) GetDB() *gorm.DB {
+	return s.db
+}
+func (s *ShieldEvent) SetDB(db *gorm.DB) *ShieldEvent {
+	s.db = db
+	return s
 }
 
 //// GetBizKey 获取业务键
