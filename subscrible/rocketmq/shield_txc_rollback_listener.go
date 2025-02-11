@@ -49,7 +49,7 @@ func (l *ShieldTxcRollbackListener) ConsumeMessage() func(context.Context, ...*p
 			baseEventService := l.baseEventService
 
 			// Persist rollback message.
-			rollbackEvent.SetEventStatus(constant.CONSUME_INIT)
+			rollbackEvent.SetEventStatus(string(constant.CONSUME_INIT))
 
 			queryEvent, err := baseEventService.QueryEventById(rollbackEvent)
 			if err != nil {
@@ -63,7 +63,7 @@ func (l *ShieldTxcRollbackListener) ConsumeMessage() func(context.Context, ...*p
 					return consumer.ConsumeRetryLater, err
 				}
 			} else {
-				if queryEvent.EventStatus != constant.CONSUME_FAILED {
+				if queryEvent.EventStatus != string(constant.CONSUME_FAILED) {
 					return consumer.ConsumeSuccess, nil
 				}
 			}
@@ -91,7 +91,7 @@ func (l *ShieldTxcRollbackListener) doUpdateAfterRollbackConsumed(consumeResult 
 	baseEventService := l.baseEventService
 	if consumeResult >= consumer.ConsumeRetryLater {
 		rollbackEvent.SetBeforeUpdateEventStatus(rollbackEvent.GetEventStatus())
-		rollbackEvent.SetEventStatus(constant.CONSUME_FAILED)
+		rollbackEvent.SetEventStatus(string(constant.CONSUME_FAILED))
 		updateBefore, err := baseEventService.UpdateEventStatusById(rollbackEvent)
 		if !updateBefore || err != nil {
 			return consumer.ConsumeRetryLater
@@ -101,7 +101,7 @@ func (l *ShieldTxcRollbackListener) doUpdateAfterRollbackConsumed(consumeResult 
 	if consumeResult == consumer.ConsumeSuccess {
 		// Consumption successful, update status to "processed".
 		rollbackEvent.SetBeforeUpdateEventStatus(rollbackEvent.GetEventStatus())
-		rollbackEvent.SetEventStatus(constant.CONSUME_PROCESSED)
+		rollbackEvent.SetEventStatus(string(constant.CONSUME_PROCESSED))
 		updateBefore, err := baseEventService.UpdateEventStatusById(rollbackEvent)
 		if !updateBefore || err != nil {
 			// Update failed, retry later.
@@ -115,7 +115,7 @@ func (l *ShieldTxcRollbackListener) doUpdateAfterRollbackConsumed(consumeResult 
 func (l *ShieldTxcRollbackListener) doUpdateMessageStatusProcessing(rollbackEvent *domain.ShieldEvent) {
 	baseEventService := l.baseEventService
 	rollbackEvent.SetBeforeUpdateEventStatus(rollbackEvent.GetEventStatus())
-	rollbackEvent.SetEventStatus(constant.CONSUME_PROCESSING)
+	rollbackEvent.SetEventStatus(string(constant.CONSUME_PROCESSING))
 	updateBefore, err := baseEventService.UpdateEventStatusById(rollbackEvent)
 	if !updateBefore || err != nil {
 		// Log the failure and return.

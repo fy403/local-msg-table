@@ -81,7 +81,7 @@ func (s *SendTxcMessageScheduler) Run() {
 					s.executorService.Done()
 				}()
 				// 获取待调度的消息，初始态==初始化
-				shieldEvents, err := s.baseEventService.QueryEventListByStatus(constant.PRODUCE_INIT)
+				shieldEvents, err := s.baseEventService.QueryEventListByStatus(string(constant.PRODUCE_INIT))
 				if err != nil {
 					logger.Errorf("Failed to query event list: %v", err)
 					return
@@ -140,7 +140,7 @@ func (s *SendTxcMessageScheduler) processBeforeSendMessage(shieldEvent *domain.S
 	// 更新前状态:生产初始化
 	shieldEvent.SetBeforeUpdateEventStatus(shieldEvent.GetEventStatus())
 	// 更新后状态:生产处理中
-	shieldEvent.SetEventStatus(constant.PRODUCE_PROCESSING)
+	shieldEvent.SetEventStatus(string(constant.PRODUCE_PROCESSING))
 	updateBefore, err := s.baseEventService.UpdateEventStatusById(shieldEvent)
 	if !updateBefore || err != nil {
 		// 更新失败
@@ -193,7 +193,7 @@ func (s *SendTxcMessageScheduler) processAfterSendMessage(shieldEvent *domain.Sh
 	// 更新前状态:生产处理中
 	shieldEvent.SetBeforeUpdateEventStatus(shieldEvent.GetEventStatus())
 	// 更新后状态:生产处理完成
-	shieldEvent.SetEventStatus(constant.PRODUCE_PROCESSED)
+	shieldEvent.SetEventStatus(string(constant.PRODUCE_PROCESSED))
 	updateBefore, err := s.baseEventService.UpdateEventStatusById(shieldEvent)
 	if !updateBefore || err != nil {
 		// 更新失败

@@ -52,7 +52,7 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 					return consumer.ConsumeRetryLater, nil
 				}
 			}
-			event.SetEventStatus(constant.CONSUME_INIT)
+			event.SetEventStatus(string(constant.CONSUME_INIT))
 			queryEvent, err := baseEventService.QueryEventById(event)
 			if err != nil {
 				logger.Warnf("[ShieldTxcCommitListener] Query CommitShieldEvent Message failed, msgId=%s", msgID)
@@ -65,7 +65,7 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 					return consumer.ConsumeRetryLater, err
 				}
 			} else {
-				if queryEvent.EventStatus != constant.CONSUME_FAILED {
+				if queryEvent.EventStatus != string(constant.CONSUME_FAILED) {
 					return consumer.ConsumeSuccess, nil
 				}
 			}
@@ -83,13 +83,13 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 
 // doPutRollbackMsgAfterMaxConsumeTimes handles rollback for messages exceeding the retry limit.
 func (l *ShieldTxcCommitListener) doPutRollbackMsgAfterMaxConsumeTimes(baseEventService event.BaseEventService, shieldEvent *domain.ShieldEvent, msgID string) bool {
-	shieldEvent.SetBeforeUpdateEventStatus(constant.CONSUME_PROCESSING)
-	shieldEvent.SetEventStatus(constant.CONSUME_MAX_RECONSUMETIMES)
+	shieldEvent.SetBeforeUpdateEventStatus(string(constant.CONSUME_PROCESSING))
+	shieldEvent.SetEventStatus(string(constant.CONSUME_MAX_RECONSUMETIMES))
 	// Insert rollback message.
 	rollbackEvent := &domain.ShieldEvent{}
 	rollbackEvent.SetEventID(shieldEvent.GetEventID()).
 		SetTxType(constant.GetRollback()).
-		SetEventStatus(constant.PRODUCE_INIT).
+		SetEventStatus(string(constant.PRODUCE_INIT)).
 		SetContent(shieldEvent.GetContent()).
 		SetAppID(shieldEvent.GetAppID())
 	// 是否已经回滚
@@ -122,7 +122,7 @@ func (l *ShieldTxcCommitListener) doUpdateAfterConsumed(consumeResult consumer.C
 	logger.Debugf("[ShieldTxcCommitListener::doUpdateAfterConsumed] The Real ConsumeConcurrentlyStatus is : [%s]", consumeResult)
 	if consumeResult >= consumer.ConsumeRetryLater {
 		shieldEvent.SetBeforeUpdateEventStatus(shieldEvent.GetEventStatus())
-		shieldEvent.SetEventStatus(constant.CONSUME_FAILED)
+		shieldEvent.SetEventStatus(string(constant.CONSUME_FAILED))
 		updateBefore, err := baseEventService.UpdateEventStatusById(shieldEvent)
 		if !updateBefore || err != nil {
 			return consumer.ConsumeRetryLater
@@ -131,7 +131,7 @@ func (l *ShieldTxcCommitListener) doUpdateAfterConsumed(consumeResult consumer.C
 	}
 	if consumeResult == consumer.ConsumeSuccess {
 		shieldEvent.SetBeforeUpdateEventStatus(shieldEvent.GetEventStatus())
-		shieldEvent.SetEventStatus(constant.CONSUME_PROCESSED)
+		shieldEvent.SetEventStatus(string(constant.CONSUME_PROCESSED))
 		updateBefore, err := baseEventService.UpdateEventStatusById(shieldEvent)
 		if !updateBefore || err != nil {
 			return consumer.ConsumeRetryLater
@@ -144,7 +144,7 @@ func (l *ShieldTxcCommitListener) doUpdateAfterConsumed(consumeResult consumer.C
 func (l *ShieldTxcCommitListener) doUpdateMessageStatusProcessing(shieldEvent *domain.ShieldEvent) {
 	baseEventService := l.baseEventService
 	shieldEvent.SetBeforeUpdateEventStatus(shieldEvent.GetEventStatus())
-	shieldEvent.SetEventStatus(constant.CONSUME_PROCESSING)
+	shieldEvent.SetEventStatus(string(constant.CONSUME_PROCESSING))
 	updateBefore, err := baseEventService.UpdateEventStatusById(shieldEvent)
 	if !updateBefore || err != nil {
 		return
