@@ -10,12 +10,10 @@ import (
 type ShieldTxcMessage struct {
 	AbstractShieldTxcMessage
 	EventID     string `json:"eventId"`
-	EventType   string `json:"eventType"`
 	TxType      string `json:"txType"`
 	EventStatus string `json:"eventStatus"`
 	Content     string `json:"content"`
 	AppID       string `json:"appId"`
-	BizKey      string `json:"bizKey"`
 }
 
 // NewShieldTxcMessage 创建一个新的 ShieldTxcMessage 实例
@@ -29,12 +27,10 @@ func NewShieldTxcMessage() *ShieldTxcMessage {
 func (m *ShieldTxcMessage) Encode() (string, error) {
 	messageBody := map[string]interface{}{
 		"eventId":     m.EventID,
-		"eventType":   m.EventType,
 		"txType":      m.TxType,
 		"eventStatus": m.EventStatus,
 		"content":     m.Content,
 		"appId":       m.AppID,
-		"bizKey":      m.BizKey,
 	}
 
 	jsonData, err := json.Marshal(messageBody)
@@ -57,12 +53,10 @@ func (m *ShieldTxcMessage) Decode(msg string) error {
 	}
 
 	m.EventID = messageBody["eventId"].(string)
-	m.EventType = messageBody["eventType"].(string)
 	m.TxType = messageBody["txType"].(string)
 	m.EventStatus = messageBody["eventStatus"].(string)
 	m.Content = messageBody["content"].(string)
 	m.AppID = messageBody["appId"].(string)
-	m.BizKey = messageBody["bizKey"].(string)
 
 	return nil
 }

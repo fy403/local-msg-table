@@ -9,7 +9,6 @@ type ShieldEvent struct {
 	ID           string `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
 	EventID      string `json:"eventId" gorm:"column:event_id"`
 	Success      bool   `json:"success" gorm:"column:success"`
-	EventType    string `json:"eventType" gorm:"column:event_type"`
 	TxType       string `json:"txType" gorm:"column:tx_type"`
 	EventStatus  string `json:"eventStatus" gorm:"column:event_status"`
 	Content      string `json:"content" gorm:"column:content"`
@@ -78,17 +77,6 @@ func (s *ShieldEvent) GetEventID() string {
 // SetID 设置自增主键
 func (s *ShieldEvent) SetEventID(eventId string) *ShieldEvent {
 	s.EventID = eventId
-	return s
-}
-
-// GetEventType 获取事件类型
-func (s *ShieldEvent) GetEventType() string {
-	return s.EventType
-}
-
-// SetEventType 设置事件类型
-func (s *ShieldEvent) SetEventType(eventType string) *ShieldEvent {
-	s.EventType = eventType
 	return s
 }
 
@@ -167,10 +155,8 @@ func (s *ShieldEvent) SetGmtUpdate(gmtUpdate time.Time) *ShieldEvent {
 // Convert 消息协议转换为事件
 func (s *ShieldEvent) Convert(shieldTxcMessage *ShieldTxcMessage) {
 	s.SetEventID(shieldTxcMessage.EventID)
-	s.SetEventType(shieldTxcMessage.EventType)
 	s.SetTxType(shieldTxcMessage.TxType)
 	s.SetContent(shieldTxcMessage.Content)
 	s.SetAppID(shieldTxcMessage.AppID)
-	//s.SetBizKey(shieldTxcMessage.BizKey)
 	s.SetEventStatus(shieldTxcMessage.EventStatus)
 }

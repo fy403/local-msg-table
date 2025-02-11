@@ -10,6 +10,7 @@ import (
 	"github.com/fy403/local-msg-table/publish"
 	"github.com/fy403/local-msg-table/subscrible"
 	"github.com/fy403/local-msg-table/subscrible/rocketmq"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -108,26 +109,19 @@ func (s *SendTxcMessageScheduler) sendMessageSync(shieldEvent *domain.ShieldEven
 	s.processAfterSendMessage(shieldEvent)
 }
 
-func (s *SendTxcMessageScheduler) PutMessage(shieldTxcMessage domain.AbstractShieldTxcMessage, eventId string, eventType constant.EventType, txType constant.TXType, appId string) error {
-	if eventType == "" {
-		return fmt.Errorf("please insert eventType, type is:[constant.EventType]")
+func (s *SendTxcMessageScheduler) PutMessage(appId string, txType constant.TXType, eventId string, content string) error {
+	if eventId == "" {
+		eventId = uuid.New().String()
 	}
-	//if bizKey == "" {
-	//	return fmt.Errorf("please insert unique bizKey!")
-	//}
-	content, err := shieldTxcMessage.Encode()
-	if err != nil {
-		return fmt.Errorf("encode ShieldTxcMessage occurred Exception! %w", err)
+	if appId == "" {
+		return fmt.Errorf("please enter appId!")
 	}
-
 	event := &domain.ShieldEvent{
 		EventID:     eventId,
-		EventType:   string(eventType),
 		TxType:      string(txType),
 		EventStatus: string(constant.PRODUCE_INIT),
 		Content:     content,
-		//BizKey:      bizKey,
-		AppID: appId,
+		AppID:       appId,
 	}
 
 	insertResult, err := s.baseEventService.InsertEvent(event)
@@ -163,10 +157,8 @@ func (s *SendTxcMessageScheduler) sendMessage(shieldEvent *domain.ShieldEvent) {
 		EventID:     shieldEvent.GetEventID(),
 		AppID:       shieldEvent.GetAppID(),
 		Content:     shieldEvent.GetContent(),
-		EventType:   shieldEvent.GetEventType(),
 		EventStatus: shieldEvent.GetEventStatus(),
 		TxType:      shieldEvent.GetTxType(),
-		//BizKey:      shieldEvent.GetBizKey(),
 	}
 	messageBody, err := shieldTxcMessage.Encode()
 	if err != nil {

@@ -7,11 +7,14 @@ import (
 	"github.com/fy403/local-msg-table/constant"
 	"github.com/fy403/local-msg-table/domain"
 	"github.com/fy403/local-msg-table/schedule"
+	"github.com/google/uuid"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"log"
 	"strconv"
 	"sync"
+	"time"
 )
 
 var gDB *gorm.DB
@@ -22,7 +25,18 @@ var onceScheduler sync.Once
 func getDB() *gorm.DB {
 	onceDB.Do(func() {
 		var err error
-		gDB, err = gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/test_db?charset=utf8mb4&parseTime=True&loc=Local"), &gorm.Config{})
+		newLogger := logger.New(
+			log.New(log.Writer(), "\r\n", log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold:             time.Second,  // 慢 SQL 阈值
+				LogLevel:                  logger.Error, // 日志级别
+				IgnoreRecordNotFoundError: true,         // 忽略ErrRecordNotFound（记录未找到）错误
+				Colorful:                  true,         // 启用彩色打印
+			},
+		)
+		gDB, err = gorm.Open(mysql.Open("root:123456@tcp(127.0.0.1:3306)/test_db?charset=utf8mb4&parseTime=True&loc=Local"), &gorm.Config{
+			Logger: newLogger,
+		})
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
@@ -76,9 +90,7 @@ func main() {
 
 		// 业务代码
 		// 使用 repo 进行数据库操作
-		msg := domain.NewShieldTxcMessage()
-		msg.Content = strconv.Itoa(i)
-		if err := scheduler.PutMessage(msg, msg.EventID, constant.INSERT, constant.COMMIT, "appId"); err != nil {
+		if err := scheduler.PutMessage("appid", constant.COMMIT, uuid.New().String(), strconv.Itoa(i)); err != nil {
 			tx.Rollback()
 			return
 		}

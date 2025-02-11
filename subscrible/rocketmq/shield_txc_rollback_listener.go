@@ -8,7 +8,6 @@ import (
 	"github.com/fy403/local-msg-table/domain"
 	"github.com/fy403/local-msg-table/event"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 var (
@@ -52,20 +51,20 @@ func (l *ShieldTxcRollbackListener) ConsumeMessage() func(context.Context, ...*p
 			// Persist rollback message.
 			rollbackEvent.SetEventStatus(constant.CONSUME_INIT)
 
-			// Handle database insert failure.
-			_, err = baseEventService.InsertEventWithId(rollbackEvent)
+			queryEvent, err := baseEventService.QueryEventById(rollbackEvent)
 			if err != nil {
-				if !strings.Contains(err.Error(), "Duplicate entry") {
+				logger.Warnf("[ShieldTxcCommitListener] Query CommitShieldEvent Message failed, msgId=%s", msgID)
+				return consumer.ConsumeRetryLater, err
+			}
+			if queryEvent == nil {
+				_, err = baseEventService.InsertEventWithId(rollbackEvent)
+				if err != nil {
+					logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed, msgId=%s", msgID)
 					return consumer.ConsumeRetryLater, err
-				} else {
-					queryEvent, err := baseEventService.QueryEventById(rollbackEvent)
-					if err != nil {
-						logger.Errorf("Failed to query event: %v", err)
-						return consumer.ConsumeRetryLater, err
-					}
-					if queryEvent.EventStatus != constant.CONSUME_FAILED {
-						return consumer.ConsumeSuccess, nil
-					}
+				}
+			} else {
+				if queryEvent.EventStatus != constant.CONSUME_FAILED {
+					return consumer.ConsumeSuccess, nil
 				}
 			}
 			//if !insertResult {

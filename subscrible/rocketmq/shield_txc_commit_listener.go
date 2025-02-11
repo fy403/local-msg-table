@@ -7,7 +7,6 @@ import (
 	"github.com/fy403/local-msg-table/constant"
 	"github.com/fy403/local-msg-table/domain"
 	"github.com/fy403/local-msg-table/event"
-	"strings"
 )
 
 // ShieldTxcCommitListener defines the Shield domain commit listener.
@@ -54,25 +53,22 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 				}
 			}
 			event.SetEventStatus(constant.CONSUME_INIT)
-			_, err = baseEventService.InsertEventWithId(event)
+			queryEvent, err := baseEventService.QueryEventById(event)
 			if err != nil {
-				if !strings.Contains(err.Error(), "Duplicate entry") {
+				logger.Warnf("[ShieldTxcCommitListener] Query CommitShieldEvent Message failed, msgId=%s", msgID)
+				return consumer.ConsumeRetryLater, err
+			}
+			if queryEvent == nil {
+				_, err = baseEventService.InsertEventWithId(event)
+				if err != nil {
+					logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed, msgId=%s", msgID)
 					return consumer.ConsumeRetryLater, err
-				} else {
-					queryEvent, err := baseEventService.QueryEventById(event)
-					if err != nil {
-						logger.Errorf("Failed to query event: %v", err)
-						return consumer.ConsumeRetryLater, err
-					}
-					if queryEvent.EventStatus != constant.CONSUME_FAILED {
-						return consumer.ConsumeSuccess, nil
-					}
+				}
+			} else {
+				if queryEvent.EventStatus != constant.CONSUME_FAILED {
+					return consumer.ConsumeSuccess, nil
 				}
 			}
-			//if !insertResult || err != nil {
-			//	logger.Warnf("[ShieldTxcCommitListener] Insert CommitShieldEvent Message failed, msgId=%s", msgID)
-			//	return consumer.ConsumeRetryLater, err
-			//}
 			// Update the status to "processing".
 			l.doUpdateMessageStatusProcessing(event)
 
@@ -87,22 +83,24 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 
 // doPutRollbackMsgAfterMaxConsumeTimes handles rollback for messages exceeding the retry limit.
 func (l *ShieldTxcCommitListener) doPutRollbackMsgAfterMaxConsumeTimes(baseEventService event.BaseEventService, shieldEvent *domain.ShieldEvent, msgID string) bool {
-	//queryEvent, err := baseEventService.QueryEventById(shieldEvent)
-	//if queryEvent == nil {
-	//	return false
-	//}
-	shieldEvent.SetEventID(shieldEvent.GetEventID())
 	shieldEvent.SetBeforeUpdateEventStatus(constant.CONSUME_PROCESSING)
 	shieldEvent.SetEventStatus(constant.CONSUME_MAX_RECONSUMETIMES)
 	// Insert rollback message.
 	rollbackEvent := &domain.ShieldEvent{}
 	rollbackEvent.SetEventID(shieldEvent.GetEventID()).
-		SetEventType(shieldEvent.GetEventType()).
 		SetTxType(constant.GetRollback()).
 		SetEventStatus(constant.PRODUCE_INIT).
 		SetContent(shieldEvent.GetContent()).
 		SetAppID(shieldEvent.GetAppID())
-	//SetBizKey(shieldEvent.GetBizKey())
+	// 是否已经回滚
+	queryEvent, err := baseEventService.QueryEventById(rollbackEvent)
+	if err != nil {
+		logger.Errorf("Failed to query rollback event: %v", err)
+		return false
+	}
+	if queryEvent != nil {
+		return true
+	}
 	// 更新状态
 	updateBefore, err := baseEventService.UpdateEventStatusById(shieldEvent)
 	logger.Debugf("[ShieldTxcCommitListener::UPDATE TO CONSUME_MAX_RECONSUMETIMES] {}, msgId={}, updateResult:[%v]", updateBefore, msgID, updateBefore)
@@ -112,14 +110,7 @@ func (l *ShieldTxcCommitListener) doPutRollbackMsgAfterMaxConsumeTimes(baseEvent
 
 	insertResult, err := baseEventService.InsertEventWithId(rollbackEvent)
 	logger.Debugf("[ShieldTxcCommitListener::INSERT ROLLBACK MESSAGE] {}, msgId={}", insertResult, msgID)
-	if err != nil {
-		if !strings.Contains(err.Error(), "Duplicate entry") {
-			return false
-		} else {
-			return true
-		}
-	}
-	if !insertResult {
+	if !insertResult || err != nil {
 		return false
 	}
 	return true

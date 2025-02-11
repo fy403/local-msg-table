@@ -5,6 +5,7 @@ import (
 	"github.com/fy403/local-msg-table/domain"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"strings"
 )
 
 var (
@@ -27,6 +28,7 @@ func NewMySQLBaseEventRepository(db *gorm.DB, tableName string) *MySQLBaseEventR
 
 // InsertEvent 插入事件
 func (r *MySQLBaseEventRepository) InsertEvent(event *domain.ShieldEvent) (bool, error) {
+	event.SetRecordStatus(0)
 	result := r.db.Create(event)
 	if result.Error != nil {
 		logger.Errorf("Failed to insert event: %v", result.Error)
@@ -40,6 +42,7 @@ func (r *MySQLBaseEventRepository) InsertEventWithId(event *domain.ShieldEvent) 
 	if event.EventID == "" {
 		return false, fmt.Errorf("event ID cannot be empty")
 	}
+	event.SetRecordStatus(0)
 	result := r.db.Create(event)
 	if result.Error != nil {
 		return false, result.Error
@@ -50,7 +53,7 @@ func (r *MySQLBaseEventRepository) InsertEventWithId(event *domain.ShieldEvent) 
 // UpdateEventStatusById 更新事件状态
 func (r *MySQLBaseEventRepository) UpdateEventStatusById(event *domain.ShieldEvent) (bool, error) {
 	result := r.db.Model(&domain.ShieldEvent{}).
-		Where("tx_type = ? AND event_id = ? AND app_id = ? ", event.GetTxType(), event.GetEventID(), event.GetAppID()).
+		Where("tx_type = ? AND event_id = ? AND app_id = ? AND record_status = 0", event.GetTxType(), event.GetEventID(), event.GetAppID()).
 		Update("event_status", event.GetEventStatus()).
 		Update("before_update_event_status", event.GetBeforeUpdateEventStatus())
 	if result.Error != nil {
@@ -88,9 +91,9 @@ func (r *MySQLBaseEventRepository) QueryEventListByStatus(eventStatus string) ([
 // QueryEventById 查询事件详情
 func (r *MySQLBaseEventRepository) QueryEventById(event *domain.ShieldEvent) (*domain.ShieldEvent, error) {
 	var shieldEvent domain.ShieldEvent
-	result := r.db.First(&shieldEvent, "tx_type = ? AND event_id = ? AND app_id = ? ", event.GetTxType(), event.GetEventID(), event.GetAppID())
+	result := r.db.First(&shieldEvent, "tx_type = ? AND event_id = ? AND app_id = ? AND record_status = 0 ", event.GetTxType(), event.GetEventID(), event.GetAppID())
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+		if strings.Contains(result.Error.Error(), "record not found") {
 			return nil, nil
 		}
 		logger.Errorf("Failed to query event by ID: %v", result.Error)
