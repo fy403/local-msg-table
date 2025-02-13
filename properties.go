@@ -113,7 +113,7 @@ func (c *Properties) createEventStoreService(db *gorm.DB) event.BaseEventService
 			logger.Error("please set 'shield.event.mysql.defaultDB' which can not be NULL!")
 			return nil
 		}
-		baseEventRepository = mysql.NewMySQLBaseEventRepository(db, c.MySQLConfig.DefaultTable)
+		baseEventRepository = mysql.NewMySQLBaseEventRepositoryWithPage(db, c.MySQLConfig.DefaultTable, 100)
 	}
 	if baseEventRepository == nil {
 		logger.Error("Failed to initialize [createEventStoreService] instance.")

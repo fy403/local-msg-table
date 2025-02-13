@@ -7,7 +7,7 @@ import (
 
 // ShieldEvent 定义event映射实体
 type ShieldEvent struct {
-	ID           string `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	ID           int    `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
 	EventID      string `json:"eventId" gorm:"column:event_id"`
 	Success      bool   `json:"success" gorm:"column:success"`
 	TxType       string `json:"txType" gorm:"column:tx_type"`

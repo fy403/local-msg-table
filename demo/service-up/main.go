@@ -40,6 +40,15 @@ func getDB() *gorm.DB {
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
+		// 获取底层数据库连接池
+		sqlDB, err := gDB.DB()
+		if err != nil {
+			log.Fatalf("Failed to get database connection pool: %v", err)
+		}
+		// 设置连接池参数
+		sqlDB.SetMaxIdleConns(3)            // 最大空闲连接数
+		sqlDB.SetMaxOpenConns(5)            // 最大打开连接数
+		sqlDB.SetConnMaxLifetime(time.Hour) // 连接的最大存活时间
 	})
 	return gDB
 }
@@ -75,7 +84,7 @@ func main() {
 	db := getDB()
 	scheduler := getScheduler(db)
 	scheduler.Schedule()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 12000; i++ {
 		// 初始化数据库连接
 		tx := db.Begin()
 		if tx.Error != nil {
@@ -96,6 +105,7 @@ func main() {
 		}
 		// 提交事务
 		tx.Commit()
+		time.Sleep(time.Second)
 	}
 	select {}
 }

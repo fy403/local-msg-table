@@ -14,8 +14,10 @@ var (
 
 // MySQLBaseEventRepository MySQL 实现
 type MySQLBaseEventRepository struct {
-	db        *gorm.DB
-	tableName string
+	db            *gorm.DB
+	tableName     string
+	cursorOnePage uint
+	lastCursor    int
 }
 
 // NewMySQLBaseEventRepository 创建一个新的 MySQLBaseEventRepository 实例
@@ -23,6 +25,15 @@ func NewMySQLBaseEventRepository(db *gorm.DB, tableName string) *MySQLBaseEventR
 	return &MySQLBaseEventRepository{
 		db:        db,
 		tableName: tableName,
+	}
+}
+
+// NewMySQLBaseEventRepository 创建一个新的 MySQLBaseEventRepository 实例
+func NewMySQLBaseEventRepositoryWithPage(db *gorm.DB, tableName string, pageSize uint) *MySQLBaseEventRepository {
+	return &MySQLBaseEventRepository{
+		db:            db,
+		tableName:     tableName,
+		cursorOnePage: pageSize,
 	}
 }
 
@@ -81,18 +92,36 @@ func (r *MySQLBaseEventRepository) DeleteEventLogicallyById(event *domain.Shield
 	return true, nil
 }
 
-// / QueryEventListByStatus 根据事件状态获取事件列表
+// QueryEventListByStatus 根据事件状态获取事件列表
 func (r *MySQLBaseEventRepository) QueryEventListByStatus(eventStatus string) ([]*domain.ShieldEvent, error) {
-	var resultList []*domain.ShieldEvent
-	result := r.db.Where("event_status = ? AND record_status = 0", eventStatus).
-		Limit(50).
-		Set("gorm:query_option", "FOR UPDATE").
-		Find(&resultList)
-	if result.Error != nil {
-		logger.Errorf("Failed to query events by status: %v", result.Error)
-		return nil, result.Error
+	if r.cursorOnePage > 0 {
+		// 如果设置了游标分页,则每次使用唯一性id（单调性）进行游标分页查找，存储中间参数到r中
+		var resultList []*domain.ShieldEvent
+		result := r.db.Where("event_status = ? AND record_status = 0 AND id > ?", eventStatus, r.lastCursor).
+			Order("id").
+			Limit(int(r.cursorOnePage)).
+			Set("gorm:query_option", "FOR UPDATE").
+			Find(&resultList)
+		if result.Error != nil {
+			logger.Errorf("Failed to query events by status with cursor: %v", result.Error)
+			return nil, result.Error
+		}
+		// 更新游标为结果集中最后一个事件的ID
+		if len(resultList) > 0 {
+			r.lastCursor = resultList[len(resultList)-1].ID
+		}
+		return resultList, nil
+	} else {
+		var resultList []*domain.ShieldEvent
+		result := r.db.Where("event_status = ? AND record_status = 0", eventStatus).
+			Set("gorm:query_option", "FOR UPDATE").
+			Find(&resultList)
+		if result.Error != nil {
+			logger.Errorf("Failed to query events by status: %v", result.Error)
+			return nil, result.Error
+		}
+		return resultList, nil
 	}
-	return resultList, nil
 }
 
 // QueryEventById 查询事件详情
