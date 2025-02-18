@@ -122,7 +122,7 @@ func (s *SendTxcMessageScheduler) sendMessageSync(shieldEvent *domain.ShieldEven
 	s.processAfterSendMessage(shieldEvent)
 }
 
-func (s *SendTxcMessageScheduler) PutMessage(tx *gorm.DB, appId string, txType constant.TXType, eventId string, content string) error {
+func (s *SendTxcMessageScheduler) PutMessage(tx *gorm.DB, appId string, eventId string, content string) error {
 	if eventId == "" {
 		eventId = uuid.New().String()
 	}
@@ -131,7 +131,7 @@ func (s *SendTxcMessageScheduler) PutMessage(tx *gorm.DB, appId string, txType c
 	}
 	event := &domain.ShieldEvent{
 		EventID:     eventId,
-		TxType:      string(txType),
+		TxType:      string(constant.COMMIT),
 		EventStatus: string(constant.PRODUCE_INIT),
 		Content:     content,
 		AppID:       appId,
@@ -215,11 +215,12 @@ func (s *SendTxcMessageScheduler) processAfterSendMessage(shieldEvent *domain.Sh
 }
 
 // Schedule 启动调度
-func (s *SendTxcMessageScheduler) Schedule() {
+func (s *SendTxcMessageScheduler) Schedule() *SendTxcMessageScheduler {
 	go func() {
 		time.Sleep(s.timeUnit * time.Duration(s.initialDelay))
 		s.Run()
 	}()
+	return s
 }
 
 // Stop 停止调度

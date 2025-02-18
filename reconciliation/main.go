@@ -34,9 +34,9 @@ func getDB(dsn string) *gorm.DB {
 		log.Fatalf("Failed to get database connection pool: %v", err)
 	}
 	// 设置连接池参数
-	sqlDB.SetMaxIdleConns(3)            // 最大空闲连接数
-	sqlDB.SetMaxOpenConns(5)            // 最大打开连接数
-	sqlDB.SetConnMaxLifetime(time.Hour) // 连接的最大存活时间
+	sqlDB.SetMaxIdleConns(3)                   // 最大空闲连接数
+	sqlDB.SetMaxOpenConns(5)                   // 最大打开连接数
+	sqlDB.SetConnMaxLifetime(time.Second * 90) // 连接的最大存活时间
 	return gDB
 }
 
