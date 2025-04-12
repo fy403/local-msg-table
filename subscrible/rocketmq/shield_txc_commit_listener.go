@@ -54,17 +54,25 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 				}
 			}
 			event.SetEventStatus(string(constant.CONSUME_INIT))
+			// 高并发场景优化
 			_, err = baseEventService.InsertEventWithId(event)
 			if err != nil {
 				// 判断错误是不是重复类型
 				if strings.Contains(err.Error(), "duplicate") {
 					event.SetBeforeUpdateEventStatus(string(constant.CONSUME_FAILED))
-					updateBefore, err := baseEventService.UpdateEventStatusById(event)
-					if !updateBefore || err != nil {
-						logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed1, msgId=%s", msgID)
-						return consumer.ConsumeRetryLater, err
+					_, err := baseEventService.UpdateEventStatusById(event)
+					if err != nil {
+						// 消息正在其它线程处理中, 这是重复消息
+						if strings.Contains(err.Error(), "not found") {
+							return consumer.ConsumeSuccess, err
+						} else {
+							// DB异常
+							logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed1, msgId=%s", msgID)
+							return consumer.ConsumeRetryLater, err
+						}
 					}
 				} else {
+					// DB异常
 					logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed2, msgId=%s", msgID)
 					return consumer.ConsumeRetryLater, err
 				}
