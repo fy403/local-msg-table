@@ -17,6 +17,6 @@ CREATE TABLE `shield_event` (
     `gmt_create` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `gmt_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `unk_message_exists` (`tx_type`, `event_id`, `app_id`) USING BTREE,
+    UNIQUE KEY `unk_message_exists` (`app_id`, `event_id`) USING BTREE,
     INDEX `idx_event_status` (`event_status`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8 COMMENT='事件表';

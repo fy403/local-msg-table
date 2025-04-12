@@ -7,6 +7,7 @@ import (
 	"github.com/fy403/local-msg-table/constant"
 	"github.com/fy403/local-msg-table/domain"
 	"github.com/fy403/local-msg-table/event"
+	"strings"
 )
 
 // ShieldTxcCommitListener defines the Shield domain commit listener.
@@ -53,25 +54,23 @@ func (l *ShieldTxcCommitListener) ConsumeMessage() func(context.Context, ...*pri
 				}
 			}
 			event.SetEventStatus(string(constant.CONSUME_INIT))
-			queryEvent, err := baseEventService.QueryEventById(event)
+			_, err = baseEventService.InsertEventWithId(event)
 			if err != nil {
-				logger.Warnf("[ShieldTxcCommitListener] Query CommitShieldEvent Message failed, msgId=%s", msgID)
-				return consumer.ConsumeRetryLater, err
-			}
-			if queryEvent == nil {
-				_, err = baseEventService.InsertEventWithId(event)
-				if err != nil {
-					logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed, msgId=%s", msgID)
+				// 判断错误是不是重复类型
+				if strings.Contains(err.Error(), "duplicate") {
+					event.SetBeforeUpdateEventStatus(string(constant.CONSUME_FAILED))
+					updateBefore, err := baseEventService.UpdateEventStatusById(event)
+					if !updateBefore || err != nil {
+						logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed1, msgId=%s", msgID)
+						return consumer.ConsumeRetryLater, err
+					}
+				} else {
+					logger.Warnf("[ShieldTxcCommitListener] InsertEventWithId CommitShieldEvent Message failed2, msgId=%s", msgID)
 					return consumer.ConsumeRetryLater, err
-				}
-			} else {
-				if queryEvent.EventStatus != string(constant.CONSUME_FAILED) {
-					return consumer.ConsumeSuccess, nil
 				}
 			}
 			// Update the status to "processing".
 			l.doUpdateMessageStatusProcessing(event)
-
 			// Real consumption using the provided function.
 			consumeResult := l.txCommitFunc(shieldTxcMessage)
 			//l.doUpdateAfterConsumed(baseEventService, consumeResult, event)
